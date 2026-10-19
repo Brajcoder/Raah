@@ -1,7 +1,7 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import { Navbar } from './components/Navbar'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { PublicRoute } from './components/PublicRoute'
@@ -18,6 +18,12 @@ import { SavedCareers } from './pages/SavedCareers'
 import { Profile } from './pages/Profile'
 import { NotFound } from './pages/NotFound'
 
+const HomeRedirect = () => {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  return user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
+}
+
 export const App = () => {
   return (
     <BrowserRouter>
@@ -30,7 +36,7 @@ export const App = () => {
           <main className="flex-1">
             <Routes>
               {/* Home redirect */}
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={<HomeRedirect />} />
 
               {/* Public Routes (Logged-in users redirected to /dashboard) */}
               <Route
