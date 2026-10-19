@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Assessment — Raah</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <a href="/static/index.html" class="brand">
+      <span>Raah</span>
+      <span class="brand-badge">RIASEC Assessment</span>
+    </a>
+    <nav>
+      <a href="/static/dashboard.html" class="btn" style="background: #eaedff; color: var(--primary);">Dashboard</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div id="quizContainer" class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <span id="progressText" class="brand-badge">Loading Questions...</span>
+        <span style="font-size: 0.875rem; color: var(--text-muted);">1 = Strongly Disagree, 5 = Strongly Agree</span>
+      </div>
+
+      <div id="questionsList" style="display: flex; flex-direction: column; gap: 1.5rem;"></div>
+
+      <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
+        <button id="submitBtn" class="btn" style="padding: 1rem 2rem; font-size: 1rem;">
+          Submit & Generate Recommendations ✨
+        </button>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="resultsContainer" class="card" style="display: none;">
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <span class="brand-badge" style="font-size: 1rem; padding: 0.4rem 1rem;">Assessment Complete</span>
+        <h2 style="font-size: 2.25rem; font-weight: 800; margin-top: 0.5rem;">
+          Your Archetype: <span id="resHollandCode" style="color: var(--primary);"></span>
+        </h2>
+      </div>
+
+      <div style="margin-bottom: 2rem;">
+        <h3 style="font-weight: 700; margin-bottom: 1rem;">Top Career Matches</h3>
+        <div id="careersList" style="display: grid; gap: 1rem;"></div>
+      </div>
+
+      <div style="background: #faf8ff; border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.5rem;">
+        <h3 style="font-weight: 700; margin-bottom: 0.75rem;">AI Career Intelligence Guidance</h3>
+        <div id="llmInsights" style="font-size: 0.95rem; line-height: 1.6; white-space: pre-line;"></div>
+      </div>
+
+      <div style="margin-top: 2rem; text-align: center;">
+        <a href="/static/dashboard.html" class="btn">Return to Dashboard</a>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { loadQuizQuestions, submitQuizAnswers } from '/static/js/quiz.js';
+
+    const answers = {};
+    let questions = [];
+
+    async function init() {
+      try {
+        questions = await loadQuizQuestions();
+        document.getElementById('progressText').textContent = `${questions.length} Diagnostic Questions`;
+
+        const list = document.getElementById('questionsList');
+        list.innerHTML = questions.map(q => `
+          <div style="padding: 1rem; border: 1px solid var(--border); border-radius: 0.75rem;">
+            <p style="font-weight: 600; font-size: 1rem; margin-bottom: 0.75rem;">${q.id}. ${q.text}</p>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+              ${[1, 2, 3, 4, 5].map(rating => `
+                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.875rem; cursor: pointer;">
+                  <input type="radio" name="q_${q.id}" value="${rating}" onchange="window.setAnswer(${q.id}, ${rating})">
+                  ${rating}
+                </label>
+              `).join('')}
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        document.getElementById('questionsList').innerHTML = `<p style="color: #991b1b;">Error: ${err.message}</p>`;
+      }
+    }
+
+    window.setAnswer = (qId, val) => {
+      answers[qId] = val;
+    };
+
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('submitBtn');
+      if (Object.keys(answers).length < questions.length) {
+        alert(`Please answer all ${questions.length} questions before submitting.`);
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Analyzing Cognitive Profile...';
+
+      try {
+        const res = await submitQuizAnswers(answers);
+        document.getElementById('quizContainer').style.display = 'none';
+        document.getElementById('resultsContainer').style.display = 'block';
+
+        document.getElementById('resHollandCode').textContent = res.holland_code;
+        document.getElementById('careersList').innerHTML = res.ranked_careers.slice(0, 3).map(c => `
+          <div style="border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.25rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h4 style="font-weight: 700; font-size: 1.1rem;">${c.title}</h4>
+              <span class="brand-badge">${c.match_score}% Match</span>
+            </div>
+            <p style="font-size: 0.875rem; color: var(--text-muted); margin: 0.5rem 0;">${c.description}</p>
+            <p style="font-size: 0.875rem; font-weight: 600;">💰 Median Salary: ${c.median_salary} | 📈 Growth: ${c.growth_rate}</p>
+          </div>
+        `).join('');
+
+        document.getElementById('llmInsights').textContent = res.llm_insights || 'Guidance generated successfully.';
+      } catch (err) {
+        alert('Evaluation failed: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Submit & Generate Recommendations ✨';
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>

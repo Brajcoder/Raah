@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard — Raah</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <a href="/static/index.html" class="brand">
+      <span>Raah</span>
+      <span class="brand-badge">Student Dashboard</span>
+    </a>
+    <nav style="display: flex; gap: 1rem; align-items: center;">
+      <a href="/static/quiz.html" class="btn">Take Assessment</a>
+      <button id="logoutBtn" class="btn" style="background: #f2f3ff; color: #464555;">Logout</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <h2 id="welcomeHeading" style="font-size: 1.75rem; font-weight: 800; margin-bottom: 0.5rem;">Welcome Explorer 👋</h2>
+      <p style="color: var(--text-muted); font-size: 0.875rem;">Your personalized Holland RIASEC assessments and career recommendations.</p>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem;">Past Assessment History</h3>
+      <div id="resultsList" style="display: flex; flex-direction: column; gap: 1rem;">
+        <p style="color: var(--text-muted);">Loading past assessments...</p>
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { Auth } from '/static/js/auth.js';
+    import { fetchUserResults } from '/static/js/dashboard.js';
+
+    document.getElementById('logoutBtn').addEventListener('click', () => Auth.logout());
+
+    const user = Auth.getUser();
+    if (user && user.full_name) {
+      document.getElementById('welcomeHeading').textContent = `Welcome, ${user.full_name} 👋`;
+    }
+
+    async function loadHistory() {
+      const container = document.getElementById('resultsList');
+      try {
+        const results = await fetchUserResults();
+        if (!results || results.length === 0) {
+          container.innerHTML = `
+            <div style="padding: 2rem; text-align: center; background: #faf8ff; border-radius: 0.75rem;">
+              <p style="margin-bottom: 1rem; color: var(--text-muted);">No assessments taken yet.</p>
+              <a href="/static/quiz.html" class="btn">Start Your First Assessment</a>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = results.map(r => `
+          <div style="border: 1px solid var(--border); border-radius: 0.75rem; padding: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <span class="brand-badge" style="font-weight: 800; font-size: 0.875rem;">Holland Code: ${r.holland_code}</span>
+              <p style="font-size: 0.875rem; color: var(--text-muted); margin-top: 0.5rem;">
+                Completed on ${new Date(r.created_at).toLocaleDateString()}
+              </p>
+            </div>
+            <a href="/static/quiz.html?result_id=${r.id}" class="btn" style="background: white; color: var(--primary); border: 1px solid var(--border);">View Details</a>
+          </div>
+        `).join('');
+      } catch (err) {
+        container.innerHTML = `<p style="color: #991b1b;">Failed to load results: ${err.message}</p>`;
+      }
+    }
+
+    loadHistory();
+  </script>
+</body>
+</html>
