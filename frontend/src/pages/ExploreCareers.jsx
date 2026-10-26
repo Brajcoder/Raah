@@ -156,11 +156,10 @@ export const ExploreCareers = () => {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer ${
-                  isSelected
+                className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer ${isSelected
                     ? 'bg-[#4f46e5] text-white shadow-sm'
                     : 'bg-white border border-[#c7c4d8]/70 text-[#464555] hover:bg-[#f2f3ff] hover:text-[#131b2e]'
-                }`}
+                  }`}
               >
                 {cat === 'High Match (85%+)' && (
                   <span className="material-symbols-outlined text-[15px]">auto_awesome</span>
@@ -374,11 +373,10 @@ export const ExploreCareers = () => {
                         onClick={() => handleToggleSave(career.id, career.title)}
                         aria-label={isSaved ? 'Remove from saved' : 'Save career'}
                         title={isSaved ? 'Remove from saved' : 'Save career'}
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-                          isSaved
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${isSaved
                             ? 'bg-[#eaedff] text-[#4f46e5]'
                             : 'bg-[#f2f3ff] text-[#777587] hover:bg-[#eaedff] hover:text-[#4f46e5]'
-                        }`}
+                          }`}
                       >
                         <span
                           className="material-symbols-outlined text-[20px]"

@@ -308,18 +308,16 @@ export const TakeAssessment = () => {
                   key={optIdx}
                   type="button"
                   onClick={() => handleSelectOption(optIdx)}
-                  className={`w-full p-4 rounded-2xl border text-left flex items-start gap-3.5 transition-all cursor-pointer ${
-                    isSelected
+                  className={`w-full p-4 rounded-2xl border text-left flex items-start gap-3.5 transition-all cursor-pointer ${isSelected
                       ? 'border-[#4f46e5] bg-[#eaedff]/90 ring-2 ring-[#4f46e5]/40 shadow-sm'
                       : 'border-white/80 bg-white/60 hover:bg-white text-[#131b2e]'
-                  }`}
+                    }`}
                 >
                   <span
-                    className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 transition-colors ${
-                      isSelected
+                    className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 transition-colors ${isSelected
                         ? 'bg-[#4f46e5] text-white shadow-xs'
                         : 'bg-[#eaedff] text-[#4f46e5]'
-                    }`}
+                      }`}
                   >
                     {optionLabels[optIdx]}
                   </span>
@@ -355,13 +353,12 @@ export const TakeAssessment = () => {
                   key={idx}
                   type="button"
                   onClick={() => setCurrentIndex(idx)}
-                  className={`w-2.5 h-2.5 rounded-full transition-all cursor-pointer ${
-                    idx === currentIndex
+                  className={`w-2.5 h-2.5 rounded-full transition-all cursor-pointer ${idx === currentIndex
                       ? 'w-6 bg-[#4f46e5]'
                       : selectedAnswers[idx] !== undefined
-                      ? 'bg-[#10b981]'
-                      : 'bg-[#c7c4d8]'
-                  }`}
+                        ? 'bg-[#10b981]'
+                        : 'bg-[#c7c4d8]'
+                    }`}
                   title={`Question ${idx + 1}`}
                 />
               ))}

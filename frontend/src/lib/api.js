@@ -8,7 +8,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 async function getHeaders() {
   const { data: { session } } = await supabase.auth.getSession()
   const token = session?.access_token || localStorage.getItem('raah_token') || ''
-  
+
   return {
     'Content-Type': 'application/json',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
@@ -47,8 +47,8 @@ async function apiRequest(endpoint, options = {}) {
     const msg = typeof errorData.detail === 'string'
       ? errorData.detail
       : Array.isArray(errorData.detail)
-      ? errorData.detail.map(d => d.msg).join(', ')
-      : 'Invalid input. Please enter a recognized academic field or stream.'
+        ? errorData.detail.map(d => d.msg).join(', ')
+        : 'Invalid input. Please enter a recognized academic field or stream.'
     throw new Error(msg)
   }
 
