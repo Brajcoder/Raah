@@ -1,5 +1,6 @@
 import re
 import json
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 from app.config import settings
@@ -160,11 +161,36 @@ Return ONLY a valid JSON object with this exact structure:
 IMPORTANT: Return raw JSON only. No markdown, no code blocks, no explanation.
 """
 
+async def _call_quiz_candidate(ai_client, model_name: str, prompt: str) -> Optional[Dict[str, Any]]:
+    """Helper to query a single candidate model with retry."""
+    from google.genai import types
+    for attempt in range(2):
+        try:
+            response = await ai_client.aio.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.75,
+                )
+            )
+            raw_text = response.text or ""
+            data = json.loads(raw_text)
+            if isinstance(data, dict) and "error" in data:
+                return data
+            if valid_quiz(data):
+                return data
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.warning(f"Candidate {model_name} attempt {attempt + 1} failed: {e}")
+    return None
+
 async def generate_quiz(field: str) -> Optional[Dict[str, Any]]:
     """
-    Generates a 10-question career-interest quiz for a specific field using Gemini async client.
-    Tries resilient model candidates (e.g. gemini-3.5-flash, gemini-3.5-flash-lite).
-    Falls back to curated psychometric quiz if AI is unreachable, preventing 502 Bad Gateway.
+    Generates a 10-question career-interest quiz for a specific field using parallel speculative execution.
+    Fires concurrent calls to high-speed candidate models (gemini-3.5-flash-lite & gemini-3.5-flash).
+    The fastest successful response wins immediately, eliminating sequential wait times.
     """
     cleaned = clean_field(field)
     if not cleaned:
@@ -172,38 +198,24 @@ async def generate_quiz(field: str) -> Optional[Dict[str, Any]]:
 
     ai_client = get_client()
     if ai_client:
-        from google.genai import types
         prompt = _build_quiz_prompt(cleaned)
+        models_to_query = ["gemini-3.5-flash-lite", "gemini-3.5-flash"]
+        tasks = [
+            asyncio.create_task(_call_quiz_candidate(ai_client, m, prompt))
+            for m in models_to_query
+        ]
 
-        # Unique ordered list of model candidates to try
-        tried = set()
-        for candidate in CANDIDATE_MODELS:
-            if not candidate or candidate in tried:
-                continue
-            tried.add(candidate)
-
-            for attempt in range(2):
-                try:
-                    response = await ai_client.aio.models.generate_content(
-                        model=candidate,
-                        contents=prompt,
-                        config=types.GenerateContentConfig(
-                            response_mime_type="application/json",
-                            temperature=0.75,
-                        )
-                    )
-                    raw_text = response.text or ""
-                    data = json.loads(raw_text)
-
-                    if isinstance(data, dict) and "error" in data:
-                        return {"error": data["error"]}
-
-                    if valid_quiz(data):
-                        return data
-
-                    logger.warning(f"Generated quiz with {candidate} failed validation on attempt {attempt + 1}")
-                except Exception as e:
-                    logger.warning(f"Gemini {candidate} attempt {attempt + 1} failed: {e}")
+        try:
+            for coro in asyncio.as_completed(tasks):
+                res = await coro
+                if res:
+                    # Cancel pending tasks as soon as the winner delivers valid output
+                    for t in tasks:
+                        if not t.done():
+                            t.cancel()
+                    return res
+        except Exception as e:
+            logger.warning(f"Parallel quiz query encountered error: {e}")
 
     # Seamless resilience: return curated fallback quiz on total LLM failure
     try:
@@ -215,20 +227,50 @@ async def generate_quiz(field: str) -> Optional[Dict[str, Any]]:
         logger.error(f"Failed to load fallback quiz: {e}")
         return None
 
+async def _call_recommend_candidate(ai_client, model_name: str, prompt: str) -> Optional[Dict[str, Any]]:
+    """Helper to query a single candidate model for career guidance."""
+    from google.genai import types
+    try:
+        response = await ai_client.aio.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.7,
+            )
+        )
+        raw_text = response.text or ""
+        data = json.loads(raw_text)
+
+        if not isinstance(data, dict):
+            return None
+        if "summary" not in data or "careers" not in data or "watch_out" not in data:
+            return None
+        careers = data.get("careers")
+        if not isinstance(careers, list) or len(careers) != 4:
+            return None
+        for c in careers:
+            if not isinstance(c, dict) or not c.get("title") or not c.get("why"):
+                return None
+            if not isinstance(c.get("first_steps"), list) or len(c["first_steps"]) < 1:
+                return None
+            if not isinstance(c.get("exams_or_courses"), list) or len(c["exams_or_courses"]) < 1:
+                return None
+        return data
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:
+        logger.warning(f"Candidate {model_name} recommendation failed: {e}")
+        return None
+
 async def recommend_for_field(
     field: str,
     profile: List[Dict[str, Any]],
     qa: Optional[List[Dict[str, Any]]] = None
 ) -> Optional[Dict[str, Any]]:
     """
-    Generates personalized field-specific career recommendations using Gemini async client.
-    Returns:
-    {
-      "summary": "...",
-      "careers": [{"title": "...", "why": "...", "first_steps": [3 items], "exams_or_courses": [2 items]} x 4],
-      "watch_out": "..."
-    }
-    Never promises jobs or salaries. Returns None on any failure.
+    Generates personalized field-specific career recommendations using parallel speculative execution.
+    Fires concurrent calls to high-speed candidate models for fastest completion and maximum resilience.
     """
     ai_client = get_client()
     if not ai_client:
@@ -238,8 +280,6 @@ async def recommend_for_field(
     cleaned_field = clean_field(field)
     if not cleaned_field:
         return None
-
-    from google.genai import types
 
     # Summarize profile traits
     profile_summary = ", ".join([f"{item.get('trait')}: {item.get('score')}%" for item in profile])
@@ -284,54 +324,21 @@ Return ONLY a valid JSON object matching this schema:
 }}
 """
 
-    tried = set()
-    for candidate in CANDIDATE_MODELS:
-        if not candidate or candidate in tried:
-            continue
-        tried.add(candidate)
+    models_to_query = ["gemini-3.5-flash-lite", "gemini-3.5-flash"]
+    tasks = [
+        asyncio.create_task(_call_recommend_candidate(ai_client, m, prompt))
+        for m in models_to_query
+    ]
 
-        try:
-            response = await ai_client.aio.models.generate_content(
-                model=candidate,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    temperature=0.7,
-                )
-            )
-            raw_text = response.text or ""
-            data = json.loads(raw_text)
-
-            if not isinstance(data, dict):
-                continue
-
-            # Validate required keys
-            if "summary" not in data or "careers" not in data or "watch_out" not in data:
-                continue
-
-            careers = data.get("careers")
-            if not isinstance(careers, list) or len(careers) != 4:
-                continue
-
-            valid = True
-            for c in careers:
-                if not isinstance(c, dict):
-                    valid = False
-                    break
-                if not c.get("title") or not c.get("why"):
-                    valid = False
-                    break
-                if not isinstance(c.get("first_steps"), list) or len(c["first_steps"]) < 1:
-                    valid = False
-                    break
-                if not isinstance(c.get("exams_or_courses"), list) or len(c["exams_or_courses"]) < 1:
-                    valid = False
-                    break
-
-            if valid:
-                return data
-
-        except Exception as e:
-            logger.warning(f"Gemini {candidate} recommend_for_field failed: {e}")
+    try:
+        for coro in asyncio.as_completed(tasks):
+            res = await coro
+            if res:
+                for t in tasks:
+                    if not t.done():
+                        t.cancel()
+                return res
+    except Exception as e:
+        logger.warning(f"Parallel recommendation failed: {e}")
 
     return None
