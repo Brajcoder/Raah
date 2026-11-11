@@ -1,4 +1,5 @@
 import uuid
+import inspect
 import logging
 from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException, Depends
@@ -53,8 +54,9 @@ async def start_quiz(
             detail="Please enter a valid course or field"
         )
 
-    # Generate quiz using Gemini
-    result = generate_quiz(cleaned_field)
+    # Generate quiz using Gemini async
+    quiz_call = generate_quiz(cleaned_field)
+    result = await quiz_call if inspect.isawaitable(quiz_call) else quiz_call
 
     if result is None:
         raise HTTPException(
@@ -174,7 +176,8 @@ async def submit_quiz(
         )
 
     field = quiz.get("field", "")
-    ai_guidance = recommend_for_field(field=field, profile=profile, qa=qa_list)
+    rec_call = recommend_for_field(field=field, profile=profile, qa=qa_list)
+    ai_guidance = await rec_call if inspect.isawaitable(rec_call) else rec_call
 
     # Save to results table
     result_id = str(uuid.uuid4())
