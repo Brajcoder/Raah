@@ -95,7 +95,7 @@ export const Dashboard = () => {
                 Welcome back, {profileData.name || 'Student'} 👋
               </h2>
               <p className="text-[#464555] text-xs sm:text-sm leading-relaxed">
-                Raah dynamically formulates career scenarios tailored to any academic field you enter. Take an assessment to discover your primary cognitive archetype and realistic career trajectories.
+                Raah offers 15 specialized psychometric, cognitive, personality, values, and strength assessments. Choose an evaluation to discover your primary cognitive archetype and realistic career trajectories.
               </p>
             </div>
 
@@ -105,7 +105,7 @@ export const Dashboard = () => {
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-[#4f46e5] hover:bg-[#3525cd] text-white text-xs font-bold shadow-md transition-all active:scale-98"
               >
                 <span className="material-symbols-outlined text-base">quiz</span>
-                <span>{attempts > 0 ? 'Explore Another Field' : 'Start First Assessment'}</span>
+                <span>{attempts > 0 ? 'Take Another Assessment' : 'Explore Assessments'}</span>
               </Link>
             </div>
           </div>
@@ -152,19 +152,19 @@ export const Dashboard = () => {
             </p>
           </div>
 
-          {/* Card 3: Latest Field Explored */}
+          {/* Card 3: Latest Assessment Explored */}
           <div className="bg-white/20 backdrop-blur-[2px] border border-white/60 rounded-2xl p-5 shadow-xs space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-[#777587] font-semibold">Latest Field</span>
+              <span className="text-xs text-[#777587] font-semibold">Latest Assessment</span>
               <div className="w-9 h-9 rounded-xl bg-[#fffbeb] text-[#f59e0b] flex items-center justify-center">
-                <span className="material-symbols-outlined text-lg">school</span>
+                <span className="material-symbols-outlined text-lg">assignment_turned_in</span>
               </div>
             </div>
             <div className="text-lg font-bold text-[#131b2e] truncate">
               {latest?.field || 'None'}
             </div>
             <p className="text-[11px] text-[#777587]">
-              {latest ? 'Most recent discipline guidance' : 'Explore any degree or course'}
+              {latest ? 'Most recent evaluation' : 'Choose from 15 assessments'}
             </p>
           </div>
         </section>
@@ -178,7 +178,7 @@ export const Dashboard = () => {
                   Latest Saved Evaluation
                 </span>
                 <h3 className="text-lg font-bold text-[#131b2e]">
-                  Field: {latest.field}
+                  Assessment: {latest.field}
                 </h3>
               </div>
 
