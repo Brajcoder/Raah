@@ -16,8 +16,7 @@ create table if not exists public.profiles (
 -- 2. Enable Row Level Security (RLS)
 alter table public.profiles enable row level security;
 
--- 3. RLS Policies
--- Allow authenticated users to view their own profile
+-- 3. RLS Policies for profiles
 drop policy if exists "Users can view own profile" on public.profiles;
 create policy "Users can view own profile"
   on public.profiles
@@ -25,7 +24,6 @@ create policy "Users can view own profile"
   to authenticated
   using (auth.uid() = id);
 
--- Allow authenticated users to update their own profile
 drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile"
   on public.profiles
@@ -34,7 +32,6 @@ create policy "Users can update own profile"
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
--- Allow profile creation (via trigger or direct client insert)
 drop policy if exists "Users can insert own profile" on public.profiles;
 create policy "Users can insert own profile"
   on public.profiles
@@ -97,21 +94,69 @@ create trigger set_profiles_updated_at
   before update on public.profiles
   for each row execute function public.set_current_timestamp_updated_at();
 
--- Verification notice:
 comment on table public.profiles is 'Public user profile table linked to auth.users with RLS enabled.';
 
 -- ==============================================================================
--- 7. Assessment Results Table (`results`)
+-- 7. Quizzes Table (`quizzes`) - Field-Specific AI Generated Quizzes
+-- ==============================================================================
+create table if not exists public.quizzes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade not null,
+  field text not null,
+  questions jsonb not null default '[]'::jsonb,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS on quizzes
+alter table public.quizzes enable row level security;
+
+-- RLS: Authenticated users can view own quizzes
+drop policy if exists "Users can view own quizzes" on public.quizzes;
+create policy "Users can view own quizzes"
+  on public.quizzes
+  for select
+  to authenticated
+  using (auth.uid() = user_id);
+
+-- RLS: Authenticated users can insert own quizzes
+drop policy if exists "Users can insert own quizzes" on public.quizzes;
+create policy "Users can insert own quizzes"
+  on public.quizzes
+  for insert
+  to authenticated
+  with check (auth.uid() = user_id);
+
+-- Indexes for quizzes
+create index if not exists idx_quizzes_user_id on public.quizzes(user_id);
+create index if not exists idx_quizzes_created_at on public.quizzes(created_at desc);
+
+comment on table public.quizzes is 'Field-specific 10-question multiple choice quizzes generated dynamically for students.';
+
+-- ==============================================================================
+-- 8. Assessment Results Table (`results`)
 -- ==============================================================================
 create table if not exists public.results (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade not null,
-  holland_code text not null,
-  trait_scores jsonb not null default '[]'::jsonb,
-  top_careers jsonb not null default '[]'::jsonb,
+  field text,
+  quiz_id uuid references public.quizzes(id) on delete set null,
+  scores jsonb not null default '[]'::jsonb,
+  matches jsonb not null default '[]'::jsonb,
+  ai jsonb,
+  holland_code text,
+  trait_scores jsonb default '[]'::jsonb,
+  top_careers jsonb default '[]'::jsonb,
   llm_insights text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Ensure columns exist if table was already created earlier (Idempotency)
+alter table public.results add column if not exists field text;
+alter table public.results add column if not exists quiz_id uuid references public.quizzes(id) on delete set null;
+alter table public.results add column if not exists scores jsonb default '[]'::jsonb;
+alter table public.results add column if not exists matches jsonb default '[]'::jsonb;
+alter table public.results add column if not exists ai jsonb;
+alter table public.results alter column holland_code drop not null;
 
 -- Enable RLS on results
 alter table public.results enable row level security;
@@ -143,5 +188,6 @@ create policy "Users can delete own results"
 -- Performance Indexes
 create index if not exists idx_results_user_id on public.results(user_id);
 create index if not exists idx_results_created_at on public.results(created_at desc);
+create index if not exists idx_results_quiz_id on public.results(quiz_id);
 
-comment on table public.results is 'Student Holland RIASEC assessment evaluations, trait vector scores, and recommended career paths.';
+comment on table public.results is 'Student career assessment evaluations, trait vector scores, and recommended career paths.';

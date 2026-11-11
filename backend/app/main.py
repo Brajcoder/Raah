@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from typing import Dict, Any, Optional
 from fastapi import FastAPI, Depends
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -106,6 +107,10 @@ async def health_check():
         "supabase_connected": is_configured,
         "gemini_configured": bool(settings.GEMINI_API_KEY)
     }
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
 
 @app.get("/", tags=["Root"])
 async def root():
