@@ -26,6 +26,8 @@ def get_client():
             logger.error(f"Failed to initialize google-genai client: {e}")
     return client
 
+GEMINI_MODEL: str = "gemini-2.5-flash"
+
 TRAIT_CODES = {"A", "C", "S", "L", "B", "O"}
 
 TRAIT_DETAILS = {
@@ -162,7 +164,7 @@ async def generate_quiz(field: str) -> Optional[Dict[str, Any]]:
     for attempt in range(2):
         try:
             response = await ai_client.aio.models.generate_content(
-                model=getattr(settings, "GEMINI_MODEL", "gemini-2.5-flash") or "gemini-2.5-flash",
+                model=GEMINI_MODEL,
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
@@ -256,7 +258,7 @@ Return ONLY a valid JSON object matching this schema:
 
     try:
         response = await ai_client.aio.models.generate_content(
-            model=getattr(settings, "GEMINI_MODEL", "gemini-2.5-flash") or "gemini-2.5-flash",
+            model=GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
